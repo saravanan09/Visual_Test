@@ -37,6 +37,11 @@
       <version>3.141.59</version>
     </dependency>
     <dependency>
+      <groupId>io.github.bonigarcia</groupId>
+      <artifactId>webdrivermanager</artifactId>
+      <version>4.2.2</version>
+    </dependency>
+    <dependency>
       <groupId>io.percy</groupId>
       <artifactId>percy-java-selenium</artifactId>
       <version>1.0.0</version>
