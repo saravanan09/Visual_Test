@@ -1,31 +1,26 @@
-package io.percy.selenium;
+package io.percy.examplepercyjavaselenium;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
 
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 /**
- * HTTP server that serves the static files that make our test app.
+ * Entrypoint to the Percy Java example app: an HTTP server that serves the
+ * TodoMVC JavaScript app.
  */
-class TestServer {
+public class App {
     // Server port.
     private static final Integer PORT = 8000;
-
-    // Location for static files in our test app.
-    private static final String TESTAPP_DIR = "src/test/resources/testapp/";
-    private static final String INDEX_FILE = "index.html";
-
+    // This file path is relative to that classpath root.
+    private static final String INDEX_PATH = "index.html";
     // Recognized Mime type map (extension -> mimetype)
     private static final Map<String, String> MIME_MAP = new HashMap<String, String>();
     static {
@@ -34,32 +29,28 @@ class TestServer {
         MIME_MAP.put("css", "text/css");
     }
 
-    private static ExecutorService executor;
-    private static HttpServer server;
+    public static void main(String[] args) throws IOException {
+        // Using a null executor will cause the server to run on the current thread, thus
+        // blocking execution until the server exits or this process is terminated.
+        startServer(null);
+    }
 
-    public static HttpServer startServer() throws IOException {
-        executor = Executors.newFixedThreadPool(1);
-        server = HttpServer.create(new InetSocketAddress(PORT), 0);
+    public static HttpServer startServer(Executor executor) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
         HttpContext context = server.createContext("/");
-        context.setHandler(TestServer::handleRequest);
+        context.setHandler(App::handleRequest);
+        System.out.println(String.format("Starting server, listening on port %d", PORT));
+        System.out.println("CTRL-C to exit");
         server.setExecutor(executor);
         server.start();
         return server;
     }
 
-    public static void shutdown() {
-        if (server != null) {
-            server.stop(1);
-        }
-        if (executor != null) {
-            executor.shutdownNow();
-        }
-    }
-
     private static void handleRequest(HttpExchange exchange) throws IOException {
         String requestedPath = exchange.getRequestURI().getPath();
+        System.out.println("Serving path: " + requestedPath);
         if (requestedPath.equals("/")) {
-            serveStaticFile(exchange, INDEX_FILE);
+            serveStaticFile(exchange, INDEX_PATH);
         } else {
             if (requestedPath.startsWith("/")) {
                 requestedPath = requestedPath.substring(1);
@@ -71,16 +62,15 @@ class TestServer {
     private static void serveStaticFile(HttpExchange exchange, String resourcePath) throws IOException {
         byte[] response;
         int responseCode;
-        File file = new File(String.format("%s/%s", TESTAPP_DIR, resourcePath));
-        if (!file.canRead()) {
+        InputStream in = App.class.getClassLoader().getResourceAsStream(resourcePath);
+        if (in == null) {
             response = "404 - File Not Found".getBytes();
             responseCode = 404;
         } else {
-            InputStream in = new FileInputStream(file);
-            response = new byte[in.available()];
-            in.read(response);
+            InputStream stream = App.class.getClassLoader().getResourceAsStream(resourcePath);
+            response = new byte[stream.available()];
+            stream.read(response);
             responseCode = 200;
-            in.close();
         }
 
         exchange.getResponseHeaders().add("Content-Type", getMimeType(resourcePath));
